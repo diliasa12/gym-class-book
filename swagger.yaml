@@ -1,0 +1,755 @@
+openapi: 3.0.3
+info:
+  title: Gym Class Booking API
+  description: |
+    API untuk sistem booking kelas gym dengan autentikasi dan otorisasi berbasis role.
+
+    ## Roles
+    - **Admin**: Dapat mengelola kelas (CRUD)
+    - **User**: Dapat melihat dan booking kelas
+
+    ## Authentication
+    Gunakan token JWT dari endpoint `/auth/login` atau `/auth/register`, lalu sertakan di header:
+    ```
+    Authorization: Bearer <your_jwt_token>
+    ```
+  version: 1.0.0
+  contact:
+    name: Gym Class Booking API
+
+servers:
+  - url: http://localhost:3000/api
+    description: Local Development Server
+
+tags:
+  - name: Auth
+    description: Registrasi dan login user
+  - name: Class (Admin)
+    description: Manajemen kelas gym — hanya untuk role **admin**
+  - name: User
+    description: Profil dan booking kelas — hanya untuk role **user**
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    # ── Requests ──────────────────────────────────────────────
+    RegisterRequest:
+      type: object
+      required: [name, email, password]
+      properties:
+        name:
+          type: string
+          example: John Doe
+        email:
+          type: string
+          format: email
+          example: john@example.com
+        password:
+          type: string
+          minLength: 6
+          example: password123
+        role:
+          type: string
+          enum: [user, admin]
+          default: user
+          example: user
+
+    LoginRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email:
+          type: string
+          format: email
+          example: john@example.com
+        password:
+          type: string
+          example: password123
+
+    CreateClassRequest:
+      type: object
+      required: [title, description, date, capacity]
+      properties:
+        title:
+          type: string
+          example: Yoga Morning
+        description:
+          type: string
+          example: Morning yoga class for beginners
+        date:
+          type: string
+          format: date-time
+          example: "2024-12-01T07:00:00Z"
+        capacity:
+          type: integer
+          minimum: 1
+          example: 20
+
+    UpdateClassRequest:
+      type: object
+      properties:
+        title:
+          type: string
+          example: Yoga Evening
+        description:
+          type: string
+          example: Evening yoga class
+        date:
+          type: string
+          format: date-time
+          example: "2024-12-01T18:00:00Z"
+        capacity:
+          type: integer
+          minimum: 1
+          example: 25
+
+    # ── Models ────────────────────────────────────────────────
+    User:
+      type: object
+      properties:
+        _id:
+          type: string
+          example: 64a1b2c3d4e5f6g7h8i9j0k1
+        name:
+          type: string
+          example: John Doe
+        email:
+          type: string
+          example: john@example.com
+        role:
+          type: string
+          enum: [user, admin]
+          example: user
+        joinedClasses:
+          type: array
+          items:
+            type: string
+          example: ["64a1b2c3d4e5f6g7h8i9j0k2", "64a1b2c3d4e5f6g7h8i9j0k3"]
+
+    Class:
+      type: object
+      properties:
+        _id:
+          type: string
+          example: 64a1b2c3d4e5f6g7h8i9j0k2
+        title:
+          type: string
+          example: Yoga Morning
+        description:
+          type: string
+          example: Morning yoga class for beginners
+        date:
+          type: string
+          format: date-time
+          example: "2024-12-01T07:00:00Z"
+        capacity:
+          type: integer
+          example: 20
+        members:
+          type: array
+          items:
+            type: string
+          example: ["64a1b2c3d4e5f6g7h8i9j0k1"]
+
+    ClassSummary:
+      type: object
+      properties:
+        _id:
+          type: string
+          example: 64a1b2c3d4e5f6g7h8i9j0k2
+        title:
+          type: string
+          example: Yoga Morning
+        date:
+          type: string
+          format: date-time
+          example: "2024-12-01T07:00:00Z"
+        capacity:
+          type: integer
+          example: 20
+
+    # ── Responses ────────────────────────────────────────────
+    SuccessMessage:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        message:
+          type: string
+          example: Operation successful
+
+    ErrorResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: false
+        message:
+          type: string
+          example: Error message
+
+  responses:
+    Unauthorized:
+      description: Token tidak valid atau tidak disertakan
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+          example:
+            success: false
+            message: Authentication required
+
+    Forbidden:
+      description: Role tidak memiliki akses ke endpoint ini
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+          example:
+            success: false
+            message: Access Forbidden
+
+    NotFound:
+      description: Resource tidak ditemukan
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+          example:
+            success: false
+            message: Resource not found
+
+    Conflict:
+      description: Resource sudah ada
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+          example:
+            success: false
+            message: Resources already exist
+
+    InternalError:
+      description: Internal server error
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+          example:
+            success: false
+            message: Internal Server Error
+
+# ── Paths ─────────────────────────────────────────────────────
+
+paths:
+  # ── AUTH ──────────────────────────────────────────────────
+
+  /auth/register:
+    post:
+      tags: [Auth]
+      summary: Register user baru
+      description: Mendaftarkan user baru dan mengembalikan JWT token.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RegisterRequest"
+      responses:
+        "201":
+          description: Registrasi berhasil
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  succes:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Registration Successful
+                  data:
+                    type: object
+                    properties:
+                      user:
+                        $ref: "#/components/schemas/User"
+                      token:
+                        type: string
+                        example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /auth/login:
+    post:
+      tags: [Auth]
+      summary: Login dan dapatkan JWT token
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginRequest"
+      responses:
+        "200":
+          description: Login berhasil
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  succes:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Login Successfull
+                  token:
+                    type: string
+                    example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+        "401":
+          description: Password salah
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              example:
+                success: false
+                message: Wrong password
+        "404":
+          description: Email tidak ditemukan
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              example:
+                success: false
+                message: Email not found
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  # ── CLASSES (Admin) ────────────────────────────────────────
+
+  /classes:
+    post:
+      tags: [Class (Admin)]
+      summary: Buat kelas baru
+      description: Membuat kelas gym baru. **Hanya untuk admin.**
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateClassRequest"
+      responses:
+        "201":
+          description: Kelas berhasil dibuat
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Class successfully add
+                  data:
+                    $ref: "#/components/schemas/Class"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "409":
+          description: Kelas dengan judul yang sama sudah ada
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              example:
+                success: false
+                message: Class already exist
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+    get:
+      tags: [Class (Admin)]
+      summary: Ambil semua kelas
+      description: Mendapatkan daftar semua kelas dengan pagination. **Hanya untuk admin.**
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+            minimum: 1
+          description: Halaman yang ingin ditampilkan
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 10
+            minimum: 1
+          description: Jumlah item per halaman
+      responses:
+        "200":
+          description: Daftar semua kelas
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  page:
+                    type: integer
+                    example: 1
+                  limit:
+                    type: integer
+                    example: 10
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Class"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /classes/{id}:
+    get:
+      tags: [Class (Admin)]
+      summary: Ambil detail kelas berdasarkan ID
+      description: Mendapatkan detail satu kelas. **Hanya untuk admin.**
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: MongoDB ObjectId dari kelas
+          example: 64a1b2c3d4e5f6g7h8i9j0k2
+      responses:
+        "200":
+          description: Detail kelas
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    $ref: "#/components/schemas/Class"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+    patch:
+      tags: [Class (Admin)]
+      summary: Update kelas
+      description: Mengupdate informasi kelas. **Hanya untuk admin.**
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          example: 64a1b2c3d4e5f6g7h8i9j0k2
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateClassRequest"
+      responses:
+        "200":
+          description: Kelas berhasil diupdate
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    $ref: "#/components/schemas/Class"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          description: Judul kelas sudah dipakai kelas lain
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              example:
+                success: false
+                message: Class already exist
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+    delete:
+      tags: [Class (Admin)]
+      summary: Hapus kelas
+      description: |
+        Menghapus kelas dan secara otomatis menghapus referensi kelas dari semua user yang sudah join.
+        **Hanya untuk admin.**
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          example: 64a1b2c3d4e5f6g7h8i9j0k2
+      responses:
+        "200":
+          description: Kelas berhasil dihapus
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Successfully delete class
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  # ── USERS ─────────────────────────────────────────────────
+
+  /users/profile:
+    get:
+      tags: [User]
+      summary: Lihat profil user yang sedang login
+      security:
+        - BearerAuth: []
+      responses:
+        "200":
+          description: Profil user
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    $ref: "#/components/schemas/User"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /users/classes:
+    get:
+      tags: [User]
+      summary: Lihat kelas yang sudah dibooking
+      description: Mendapatkan daftar kelas yang sudah dibooking oleh user yang sedang login (populated).
+      security:
+        - BearerAuth: []
+      responses:
+        "200":
+          description: Daftar kelas yang sudah dibooking
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  succes:
+                    type: boolean
+                    example: true
+                  class:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Class"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /users/availableclass:
+    get:
+      tags: [User]
+      summary: Lihat kelas yang masih tersedia
+      description: Mendapatkan daftar kelas yang jumlah member-nya masih di bawah kapasitas.
+      security:
+        - BearerAuth: []
+      responses:
+        "200":
+          description: Daftar kelas yang tersedia
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/ClassSummary"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /users/book/{classId}:
+    post:
+      tags: [User]
+      summary: Booking kelas
+      description: |
+        Mendaftarkan user ke kelas tertentu.
+
+        **Validasi:**
+        - Kelas harus ada
+        - User belum terdaftar di kelas tersebut
+        - Kapasitas kelas belum penuh
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: classId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: MongoDB ObjectId dari kelas
+          example: 64a1b2c3d4e5f6g7h8i9j0k2
+      responses:
+        "201":
+          description: Booking berhasil
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Successfully add class
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          description: Kelas atau user tidak ditemukan
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              example:
+                success: false
+                message: Class not found
+        "409":
+          description: User sudah terdaftar di kelas atau kelas sudah penuh
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              examples:
+                alreadyJoined:
+                  summary: Sudah terdaftar
+                  value:
+                    success: false
+                    message: Class has been added
+                classFull:
+                  summary: Kelas penuh
+                  value:
+                    success: false
+                    message: Class is full
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+    delete:
+      tags: [User]
+      summary: Batalkan booking kelas
+      description: Menghapus user dari kelas dan menghapus kelas dari daftar `joinedClasses` user.
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: classId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: MongoDB ObjectId dari kelas
+          example: 64a1b2c3d4e5f6g7h8i9j0k2
+      responses:
+        "200":
+          description: Booking berhasil dibatalkan
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Class removed from user successfully
+                  data:
+                    $ref: "#/components/schemas/User"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          description: User atau kelas tidak ditemukan di daftar booking
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              example:
+                success: false
+                message: Class not found
+        "500":
+          $ref: "#/components/responses/InternalError"

@@ -10,5 +10,8 @@ export const register = catchAsync(async (req, res) => {
 export const login = catchAsync(async (req, res) => {
   const { email, password } = req.body;
   const result = await masuk(email, password);
-  res.status(200).json(result);
+  res
+    .setHeader("authorization", `Bearer ${result.token}`)
+    .status(200)
+    .json(result);
 });
