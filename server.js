@@ -8,7 +8,6 @@ import routeUser from "./src/routes/user.routes.js";
 import routeClass from "./src/routes/class.routes.js";
 import errorHandler from "./src/middlewares/error.middleware.js";
 import swaggerUi from "swagger-ui-express";
-import { readFileSync } from "fs";
 import yaml from "js-yaml";
 import { readFileSync } from "fs";
 import { fileURLToPath } from "url";
