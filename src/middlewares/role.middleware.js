@@ -3,7 +3,7 @@ export const roleMiddleware = (role) => {
     if (req.user.role !== role) {
       const err = new Error("Access Forbidden");
       err.statusCode = 403;
-      next(err);
+      return next(err);
     }
 
     next();

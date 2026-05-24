@@ -1,6 +1,6 @@
-import express from "express";
 import dotenv from "dotenv";
 dotenv.config();
+import express from "express";
 import cors from "cors";
 import mongoseConnect from "./src/config/db.js";
 import routeAuth from "./src/routes/auth.routes.js";
@@ -10,11 +10,19 @@ import errorHandler from "./src/middlewares/error.middleware.js";
 import swaggerUi from "swagger-ui-express";
 import { readFileSync } from "fs";
 import yaml from "js-yaml";
+import { readFileSync } from "fs";
+import { fileURLToPath } from "url";
+import { dirname, join } from "path";
 
 const app = express();
 
 const PORT = process.env.PORT || 5000;
-const swaggerDoc = yaml.load(readFileSync("./swagger.yaml", "utf8"));
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+const swaggerDoc = yaml.load(
+  readFileSync(join(__dirname, "swagger.yaml"), "utf8"),
+);
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 app.use(cors({ origin: "*" }));

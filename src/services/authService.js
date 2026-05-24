@@ -17,7 +17,7 @@ export async function daftar(email, body) {
   const token = jwt.sign(
     { id: user._id, role: user.role },
     process.env.JWT_SECRET,
-    { expiresIn: process.env.EXPIRES_IN }
+    { expiresIn: process.env.EXPIRES_IN },
   );
   return {
     succes: true,
@@ -35,7 +35,7 @@ export async function masuk(email, password) {
     err.statusCode = 404;
     throw err;
   }
-  const match = user.comparePassword(password, user.password);
+  const match = await user.comparePassword(password, user.password);
   if (!match) {
     const err = new Error("Wrong password");
     err.statusCode = 401;
@@ -45,7 +45,7 @@ export async function masuk(email, password) {
   const token = jwt.sign(
     { id: user._id, role: user.role },
     process.env.JWT_SECRET,
-    { expiresIn: process.env.EXPIRES_IN }
+    { expiresIn: process.env.EXPIRES_IN },
   );
   return { succes: true, message: "Login Successfull", token: token };
 }

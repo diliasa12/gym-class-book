@@ -23,7 +23,7 @@ export async function tambahClass(id, userId) {
     throw err;
   }
   const classIsExist = user.joinedClasses.some(
-    (u) => u.toString() === id.toString()
+    (u) => u.toString() === id.toString(),
   );
   if (classIsExist) {
     const err = new Error("Class has been added");
@@ -40,7 +40,7 @@ export async function tambahClass(id, userId) {
   await User.updateOne(
     user,
     { $addToSet: { joinedClasses: joinClass._id } },
-    { new: true }
+    { new: true },
   ).populate("joinedClasses");
   await Class.updateOne(joinClass, { $addToSet: { members: user._id } });
   return {
@@ -57,7 +57,7 @@ export async function hapusClass(classId, email) {
     throw err;
   }
   const existingJoinedClass = user.joinedClasses.some(
-    (id) => id.toString() === classId.toString()
+    (id) => id.toString() === classId.toString(),
   );
   if (!existingJoinedClass) {
     const err = new Error("Class not found");
@@ -66,11 +66,11 @@ export async function hapusClass(classId, email) {
   }
   const classes = await Class.findById(classId);
   classes.members = classes.members.filter(
-    (id) => id.toString() !== user._id.toString()
+    (id) => id.toString() !== user._id.toString(),
   );
   await classes.save();
   user.joinedClasses = user.joinedClasses.filter(
-    (id) => id.toString() !== id.toString()
+    (id) => id.toString() !== classId.toString(),
   );
 
   await user.save();
