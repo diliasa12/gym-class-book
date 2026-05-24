@@ -1,6 +1,7 @@
 import express from "express";
-import cors from "cors";
 import dotenv from "dotenv";
+dotenv.config();
+import cors from "cors";
 import mongoseConnect from "./src/config/db.js";
 import routeAuth from "./src/routes/auth.routes.js";
 import routeUser from "./src/routes/user.routes.js";
@@ -11,7 +12,7 @@ import { readFileSync } from "fs";
 import yaml from "js-yaml";
 
 const app = express();
-dotenv.config();
+
 const PORT = process.env.PORT || 5000;
 const swaggerDoc = yaml.load(readFileSync("./swagger.yaml", "utf8"));
 app.use(express.json());
@@ -29,6 +30,9 @@ app.use("/api/auth", routeAuth);
 app.use("/api/classes", routeClass);
 app.use("/api/users", routeUser);
 app.use(errorHandler);
-app.listen(PORT, () => {
-  console.log(`SERVER RUNNING ON http://localhost:${PORT}`);
-});
+export default app;
+if (process.env.NODE_ENV !== "production") {
+  app.listen(PORT, () => {
+    console.log(`SERVER RUNNING ON http://localhost:${PORT}`);
+  });
+}
